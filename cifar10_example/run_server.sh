@@ -1,0 +1,1 @@
+docker run --name fedl -it -p 8826:8826 --gpus all --rm -v $PWD:/workspace -w /workspace fedl:v1 python server.py 8826

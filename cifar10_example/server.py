@@ -1,7 +1,9 @@
 import flwr as fl
 import sys
 import numpy as np
+import tensorflow as tf
 
+print(tf.test.is_gpu_available())
 
 class SaveModelStrategy(fl.server.strategy.FedAvg):
     def aggregate_fit(
@@ -27,3 +29,4 @@ fl.server.start_server(
         grpc_max_message_length = 1024*1024*1024,
         strategy = strategy
 )
+
