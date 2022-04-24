@@ -48,23 +48,30 @@ def test(net, testloader):
     return loss, accuracy
 
 def get_parameters(net) -> List[np.ndarray]:
+    """
+    A function which the server uses to get the paramaters from the clients.
+    """
     return [val.cpu().numpy() for _, val in net.state_dict().items()]
 
 def set_parameters(net, parameters: List[np.ndarray]):
+    """
+    A function which sets the parameters of the clients from the servers.
+    """
     params_dict = zip(net.state_dict().keys(), parameters)
     state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
     net.load_state_dict(state_dict, strict=True)
 
 class FlowerClient(fl.client.NumPyClient):
+    """
+    A class for the Flower Client.
+    """
     def __init__(self, model, trainloader, valloader):
         self.model = model
         self.trainloader = trainloader
         self.valloader = valloader
 
-
     def get_parameters(self):
         return get_parameters(self.model)
-
 
     def fit(self, parameters, config):
         set_parameters(self.model, parameters)
@@ -72,11 +79,9 @@ class FlowerClient(fl.client.NumPyClient):
         return get_parameters(self.model), len(self.trainloader), {}
 
     def evaluate(self, parameters, config):
-
         set_parameters(self.model, parameters)
         try:
             loss, accuracy = test(self.model, self.valloader)
         except Exception as e:
             print("FAILURE", e)
-
         return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
