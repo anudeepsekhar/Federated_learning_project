@@ -8,57 +8,11 @@ import numpy as np
 import tensorflow as tf
 from flwr.server.strategy import FedAvg, FedAdam
 import dataset
+from server import start_server
+from client import start_client
 
 # Make TensorFlow log less verbose
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-
-
-DATASET = Tuple[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray]]
-
-
-def start_server(num_rounds: int, num_clients: int, fraction_fit: float):
-    model = tf.keras.applications.MobileNetV2((32, 32, 3), classes=10, weights=None)
-    model.compile("adam", "sparse_categorical_crossentropy", metrics=["accuracy"])
-    weights = model.get_weights()
-    initial_params = fl.common.weights_to_parameters(weights)
-    """Start the server with a slightly adjusted FedAvg strategy."""
-    strategy = FedAvg(min_available_clients=num_clients, fraction_fit=fraction_fit, initial_parameters=initial_params)
-    # Exposes the server by default on port 8080
-    fl.server.start_server(strategy=strategy, config={"num_rounds": num_rounds})
-
-
-def start_client(dataset: DATASET) -> None:
-    """Start a single client with the provided dataset."""
-
-    # Load and compile a Keras model for CIFAR-10
-    model = tf.keras.applications.MobileNetV2((32, 32, 3), classes=10, weights=None)
-    model.compile("adam", "sparse_categorical_crossentropy", metrics=["accuracy"])
-
-    # Unpack the CIFAR-10 dataset partition
-    (x_train, y_train), (x_test, y_test) = dataset
-
-    # Define a Flower client
-    class CifarClient(fl.client.NumPyClient):
-        def get_parameters(self):
-            """Return current weights."""
-            return model.get_weights()
-
-        def fit(self, parameters, config):
-            """Fit model and return new weights as well as number of training
-            examples."""
-            model.set_weights(parameters)
-            model.fit(x_train, y_train, epochs=1, batch_size=32, steps_per_epoch=100)
-            return model.get_weights(), len(x_train), {}
-
-        def evaluate(self, parameters, config):
-            """Evaluate using provided parameters."""
-            model.set_weights(parameters)
-            loss, accuracy = model.evaluate(x_test, y_test)
-            return loss, len(x_test), {"accuracy": accuracy}
-
-    # Start Flower client
-    fl.client.start_numpy_client("0.0.0.0:8080", client=CifarClient())
-
 
 def run_simulation(num_rounds: int, num_clients: int, fraction_fit: float):
     """Start a FL simulation."""
