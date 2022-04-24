@@ -1,1 +1,0 @@
-docker exec -it fedl python client.py 8826 $CLIENT_KEY
