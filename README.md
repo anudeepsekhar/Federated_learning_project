@@ -1,9 +1,5 @@
 # Federated_learning_project
 
-## To run the project:
+## To run the simulation:
 
-#### Run Server: 
-`python server.py <PORT>`
-
-#### Run Client: 
-`python client.py <PORT>`
+`bash run.sh`
