@@ -30,8 +30,8 @@ def get_dataset(args):
             user_groups_val = cifar_iid(test_dataset, args.num_users)
 
         else:
-            user_groups_train = cifar_noniid(train_dataset, args.num_users)
-            user_groups_val =  cifar_noniid(test_dataset, args.num_users)
+            user_groups_train = cifar_noniid(train_dataset, args.num_users, val = False)
+            user_groups_val =  cifar_noniid(test_dataset, args.num_users, val = True)
 
     elif args.dataset == 'mnist':
 

@@ -4,14 +4,16 @@ import flwr as fl
 import numpy as np
 import torch
 import tqdm
-
+from torch.utils.tensorboard import SummaryWriter
+logger = SummaryWriter('./logs')
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-def train(net, trainloader, epochs: int, verbose=False):
+def train(net, cid, curr_rnd, trainloader, epochs: int, verbose=False):
     """Train the network on the training set."""
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(net.parameters())
     net.train()
+    epoch_loss_list = []
     for epoch in range(epochs):
         correct, total, epoch_loss = 0, 0, 0.0
         for images, labels in trainloader:
@@ -27,8 +29,15 @@ def train(net, trainloader, epochs: int, verbose=False):
             correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
         epoch_loss /= len(trainloader.dataset)
         epoch_acc = correct / total
+        epoch_loss_list.append(epoch_loss)
+        logger.add_scalars(f'Round Number : {curr_rnd}, Epoch Number : {epoch}, cid : {cid}',\
+        {'epoch_loss' : epoch_loss, 'epoch_acc' : epoch_acc}, epoch)
+        print(f'Round Number : {curr_rnd}, Epoch Number : {epoch}, cid : {cid}',\
+        f'epoch_loss : {epoch_loss}, epoch_acc : {epoch_acc}')
         if verbose:
             print(f"Epoch {epoch+1}: train loss {epoch_loss}, accuracy {epoch_acc}")
+    logger.close()
+    return sum(epoch_loss_list)/len(epoch_loss_list)
 
 def test(net, testloader):
     """Evaluate the network on the entire test set."""
@@ -65,7 +74,8 @@ class FlowerClient(fl.client.NumPyClient):
     """
     A class for the Flower Client.
     """
-    def __init__(self, model, trainloader, valloader):
+    def __init__(self, cid, model, trainloader, valloader):
+        self.cid = cid
         self.model = model
         self.trainloader = trainloader
         self.valloader = valloader
@@ -74,14 +84,20 @@ class FlowerClient(fl.client.NumPyClient):
         return get_parameters(self.model)
 
     def fit(self, parameters, config):
-        set_parameters(self.model, parameters)
-        train(self.model, self.trainloader, epochs = 5)
+        try:
+            curr_round = config["curr_round"]
+            set_parameters(self.model, parameters)
+            train_loss = train(self.model, self.cid, curr_round, self.trainloader, epochs = config["local_epochs"])
+        except Exception as e:
+            print("FAILURE", e)
         return get_parameters(self.model), len(self.trainloader), {}
 
     def evaluate(self, parameters, config):
         set_parameters(self.model, parameters)
         try:
             loss, accuracy = test(self.model, self.valloader)
+            logger.add_scalars(f'Round : {self.curr_round}, cid : {self.cid}', {'loss_eval' : loss, 'accuracy_eval' : accuracy},0)
+            logger.close()
         except Exception as e:
             print("FAILURE", e)
-        return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
+        return float(loss), len(self.valloader), {"accuracy": float(accuracy), "loss" : float(loss)}
