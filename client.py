@@ -36,7 +36,6 @@ def train(net, cid, curr_rnd, trainloader, epochs: int, verbose=False):
         f'epoch_loss : {epoch_loss}, epoch_acc : {epoch_acc}')
         if verbose:
             print(f"Epoch {epoch+1}: train loss {epoch_loss}, accuracy {epoch_acc}")
-    logger.close()
     return sum(epoch_loss_list)/len(epoch_loss_list)
 
 def test(net, testloader):
@@ -96,8 +95,7 @@ class FlowerClient(fl.client.NumPyClient):
         set_parameters(self.model, parameters)
         try:
             loss, accuracy = test(self.model, self.valloader)
-            logger.add_scalars(f'Round : {self.curr_round}, cid : {self.cid}', {'loss_eval' : loss, 'accuracy_eval' : accuracy},0)
-            logger.close()
+            logger.add_scalars(f'cid : {self.cid}', {'loss_eval' : loss, 'accuracy_eval' : accuracy},0)
         except Exception as e:
             print("FAILURE", e)
         return float(loss), len(self.valloader), {"accuracy": float(accuracy), "loss" : float(loss)}
