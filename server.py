@@ -7,8 +7,14 @@ import numpy as np
 from client import FlowerClient
 import argparse
 import subprocess, sys
-
+import csv
+from file import close_writer
+import pandas as pd
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+import multiprocessing as mp
+from multiprocessing import Queue
+from start_simulation import start_simulation
+header = ['Round Number', 'Epoch Number', 'Cid', 'Epoch Loss', 'Epoch Acc']
 class DatasetSplit(Dataset):
     """An abstract Dataset class wrapped around Pytorch Dataset class.
     """
@@ -54,7 +60,6 @@ if __name__ == '__main__':
     train_dataset, test_dataset, user_groups_train, user_groups_val = get_dataset(args)
     trainloaders = []
     valloaders = []
-
     #A loop to put all the trainloaders in a list and valloaders in another list
     for user in range(args.num_users):
         trainloaders.append(DataLoader(DatasetSplit(train_dataset, user_groups_train[user]),\
@@ -63,11 +68,30 @@ if __name__ == '__main__':
         valloaders.append(DataLoader(DatasetSplit(test_dataset, user_groups_val[user]),\
             batch_size = args.local_bs, shuffle = False, num_workers = 2))
 
+    pool = mp.Pool(processes = int(args.num_users * args.frac_fit))
+    m = mp.Manager()
     #Setting the dataset
     if args.dataset == 'mnist':
         global_model = CNNMnist(args).to(DEVICE)
     elif args.dataset == 'cifar':
         global_model = CNNCifar(args).to(DEVICE)
+
+    class Writer:
+        def __init__(self):
+            self.data_frame = None
+
+        def write(self, data):
+            manager = mp.Manager()
+            m_list = manager.list()
+            m_list.append(pd.DataFrame(data))
+            self.data_frame = m_list
+
+        def close(self):
+            data = pd.concat(self.data_frame, ignore_index = True)
+            data.to_csv('./logs.csv')
+
+        def print_writer(self):
+            print(self.data,"self.data")
 
     #A function to manage the clients.
     def client_fn(cid):
@@ -103,9 +127,16 @@ if __name__ == '__main__':
     )
 
     #Start the Simulation
-    fl.simulation.start_simulation(
+    # fl.simulation.start_simulation(
+    #     client_fn = client_fn,
+    #     num_clients = args.num_users,
+    #     num_rounds = args.epochs,
+    #     strategy = strategy
+    # )
+    hist = start_simulation(
         client_fn = client_fn,
         num_clients = args.num_users,
         num_rounds = args.epochs,
         strategy = strategy
     )
+
