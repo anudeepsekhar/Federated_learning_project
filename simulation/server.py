@@ -8,34 +8,38 @@ import socket
 # Make TensorFlow log less verbose
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
-def fit_config(rnd: int):
-    """Return training configuration dict for each round.
-    Keep batch size fixed at 32, perform two rounds of training with one
-    local epoch, increase to two local epochs afterwards.
-    """
-    config = {
-        "batch_size": 32,
-        "local_epochs": 1,
-        "rnd":rnd,
-        "mode":'train'
-    }
-    return config
+def get_fit_config(batch_size, local_epochs, steps_per_epoch):
+    def fit_config(rnd: int):
+        """Return training configuration dict for each round.
+        Keep batch size fixed at 32, perform two rounds of training with one
+        local epoch, increase to two local epochs afterwards.
+        """
+        config = {
+            "batch_size": batch_size,
+            "local_epochs": local_epochs,
+            "steps_per_epoch":steps_per_epoch,
+            "rnd":rnd,
+            "mode":'train'
+        }
+        return config
+    return fit_config
+def get_evaluate_config():
+    def evaluate_config(rnd: int):
+        """Return evaluation configuration dict for each round.
+        Perform five local evaluation steps on each client (i.e., use five
+        batches) during rounds one to three, then increase to ten local
+        evaluation steps.
+        """
+        val_steps = 5 if rnd < 4 else 10
+        config = {
+            "val_steps": val_steps,
+            "rnd":rnd,
+            "mode":'eval'
+        }
+        return config
+    return evaluate_config
 
-def evaluate_config(rnd: int):
-    """Return evaluation configuration dict for each round.
-    Perform five local evaluation steps on each client (i.e., use five
-    batches) during rounds one to three, then increase to ten local
-    evaluation steps.
-    """
-    val_steps = 5 if rnd < 4 else 10
-    config = {
-        "val_steps": val_steps,
-        "rnd":rnd,
-        "mode":'eval'
-    }
-    return config
-
-def start_server(num_rounds: int, num_clients: int, fraction_fit: float, server_address=None, port=8080):
+def start_server(num_rounds, num_clients, fraction_fit,batch_size=32, local_epochs=1, steps_per_epoch=100, server_address=None, port=8080):
     model = tf.keras.applications.MobileNetV2((32, 32, 3), classes=10, weights=None)
     model.compile("adam", "sparse_categorical_crossentropy", metrics=["accuracy"])
     weights = model.get_weights()
@@ -45,8 +49,8 @@ def start_server(num_rounds: int, num_clients: int, fraction_fit: float, server_
         min_available_clients=num_clients, 
         fraction_fit=fraction_fit, 
         initial_parameters=initial_params,
-        on_fit_config_fn=fit_config,
-        on_evaluate_config_fn=evaluate_config
+        on_fit_config_fn=get_fit_config(batch_size, local_epochs, steps_per_epoch),
+        on_evaluate_config_fn=get_evaluate_config()
     )
     if server_address is None:
         # Exposes the server by default on port 8080

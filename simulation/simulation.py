@@ -28,7 +28,14 @@ def run_simulation(config):
 
     # Start the server
     server_process = Process(
-        target=start_server, args=(config['num_rounds'], config['num_clients'], config['fraction_fit'])
+        target=start_server, args=(
+            config['num_rounds'], 
+            config['num_clients'], 
+            config['fraction_fit'],
+            config['batch_size'],
+            config['local_epochs'],
+            config['steps_per_epoch']
+        )
     )
     server_process.start()
     processes.append(server_process)
@@ -53,8 +60,10 @@ if __name__ == "__main__":
         'exp_name':'exp2',
         'num_rounds':200,
         'num_clients':10,
-        'fraction_fit':0.5
-
+        'fraction_fit':0.5,
+        'batch_size':50,
+        'steps_per_epoch':100,
+        'local_epochs':1
     }
     if not os.path.exists(config['exp_name']):
         os.makedirs(config['exp_name'])

@@ -39,7 +39,7 @@ def start_client(dataset: DATASET, cid, writer, server_address="0.0.0.0", port=8
             model.set_weights(parameters)
             config['cid']=cid
             # print(config)
-            history = model.fit(x_train, y_train, epochs=config['local_epochs'], batch_size=config['batch_size'], steps_per_epoch=100)
+            history = model.fit(x_train, y_train, epochs=config['local_epochs'], batch_size=config['batch_size'], steps_per_epoch=config['steps_per_epoch'])
             data = history.history
             data['cid'] = cid
             data['round']=config['rnd']
