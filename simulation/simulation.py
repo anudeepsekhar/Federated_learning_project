@@ -67,5 +67,8 @@ if __name__ == "__main__":
     }
     if not os.path.exists(config['exp_name']):
         os.makedirs(config['exp_name'])
+    else:
+        os.makedirs(config['exp_name']+'copy')
+        config['exp_name'] = config['exp_name']+'copy'
     pd.DataFrame(config,index=[0]).to_csv(os.path.join(config['exp_name'],'config.csv'))
     run_simulation(config)
