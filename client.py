@@ -6,8 +6,9 @@ import torch
 import tqdm
 from torch.utils.tensorboard import SummaryWriter
 logger = SummaryWriter('./logs')
+import csv
+from file import return_writer
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
 def train(net, cid, curr_rnd, trainloader, epochs: int, verbose=False):
     """Train the network on the training set."""
     criterion = torch.nn.CrossEntropyLoss()
@@ -30,10 +31,7 @@ def train(net, cid, curr_rnd, trainloader, epochs: int, verbose=False):
         epoch_loss /= len(trainloader.dataset)
         epoch_acc = correct / total
         epoch_loss_list.append(epoch_loss)
-        logger.add_scalars(f'Round Number : {curr_rnd}, Epoch Number : {epoch}, cid : {cid}',\
-        {'epoch_loss' : epoch_loss, 'epoch_acc' : epoch_acc}, epoch)
-        print(f'Round Number : {curr_rnd}, Epoch Number : {epoch}, cid : {cid}',\
-        f'epoch_loss : {epoch_loss}, epoch_acc : {epoch_acc}')
+        data  = [f'{curr_rnd}', f'{epoch}', f'{cid}', f'{epoch_loss}', f'{epoch_acc}']
         if verbose:
             print(f"Epoch {epoch+1}: train loss {epoch_loss}, accuracy {epoch_acc}")
     return sum(epoch_loss_list)/len(epoch_loss_list)
@@ -79,12 +77,13 @@ class FlowerClient(fl.client.NumPyClient):
         self.trainloader = trainloader
         self.valloader = valloader
 
+
     def get_parameters(self):
         return get_parameters(self.model)
 
     def fit(self, parameters, config):
         try:
-            curr_round = config["curr_round"]
+            curr_round = config["current_rnd"]
             set_parameters(self.model, parameters)
             train_loss = train(self.model, self.cid, curr_round, self.trainloader, epochs = config["local_epochs"])
         except Exception as e:
